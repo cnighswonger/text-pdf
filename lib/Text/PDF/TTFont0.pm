@@ -125,10 +125,23 @@ sub new
                 $unistr .= "endbfchar\n";
                 $unistr .= "$s beginbfchar\n";
             }
-            $unistr .= sprintf("<%04x> <%04x>\n", $i, $rev[$i]);
+            my $uni = $rev[$i];
+            # ToUnicode destinations are UTF-16BE, so anything outside the
+            # BMP has to be written as a surrogate pair. find_ms() prefers
+            # the (3,10) UCS-4 subtable, so astral code points do reach here.
+            if ($uni > 0xFFFF)
+            {
+                my $v = $uni - 0x10000;
+                $unistr .= sprintf("<%04X> <%04X%04X>\n", $i,
+                                   0xD800 + ($v >> 10), 0xDC00 + ($v & 0x3FF));
+            }
+            else
+            {
+                $unistr .= sprintf("<%04X> <%04X>\n", $i, $uni);
+            }
             $j++;
         }
-        $unistr .= "endbfchar\nendcmap CMapName currendict /CMap defineresource pop end end\n";
+        $unistr .= "endbfchar\nendcmap CMapName currentdict /CMap defineresource pop end end\n";
         $touni = PDFDict();
         $parent->new_obj($touni);
         $touni->{' stream'} = $unistr;
